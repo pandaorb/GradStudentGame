@@ -1,0 +1,332 @@
+#include <iostream>
+#include <stdlib.h>
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <cstdlib>
+#include <climits>
+#include <fstream>
+#include "project1_functions.h"
+
+/* Constructors for Character */
+Character::Character()
+{
+}
+
+Character::Character(u_short intIn, u_short timeIn, u_short moneyIn): intelligence(intIn), time(timeIn), money(moneyIn)
+{
+}
+
+/* Constructors for Hallway */
+Hallway::Hallway()
+{
+}
+
+Hallway::Hallway(int lengthIn) : length(lengthIn)
+{
+}
+
+/*
+ * Asks for the player's name.
+ * Parameters: None
+ * Return: Player name as string.
+ */
+string getPlayerName()
+{
+	string playerName = "";
+	cout << "Please enter your name: ";
+	getline(cin, playerName);
+	cout << endl;
+	return playerName;
+}
+
+/*
+ * Sets up game by setting hall and character 
+ * attributes. It will also allow the player
+ * to select the next move of the character.
+ * Parameters: Character& and Hallway& to set attributes.
+ * Returns: None
+ */
+void startGame(Character& character, Hallway& hall)
+{
+	generateAttributes(character);
+	hall.length = 20;
+	hall.traversed = 0;
+	selectStrategy(character, hall);
+	
+}
+
+/*
+ * Generates random character attributes.
+ * Parameters: Character& to populate attributes.
+ * Returns: None
+ */
+void generateAttributes(Character& character)
+{	
+	character.time = 10 + rand() % 5;
+	character.intelligence = 10  + rand() % 5;
+	character.money = 10 + rand() % 5; 
+}
+
+/*
+ * Allows player to select the next action of the
+ * character. (View character, search for change,
+ * read technical papers, walk, quit game).
+ * Parameters: Character& - attributes will change
+ * 	Hallway& - keeps track of progress made.
+ * Returns: None
+ */
+void selectStrategy(Character& character, Hallway& hall)
+{
+	if(checkStatus(character, hall))
+	{
+		return;
+	}
+	enum nextMove {VIEW = 1, SEARCH, READ, WALK, EXIT};
+	int selection;
+	cout << "Please choose your next action. " << endl
+		<< "1. View Character" << endl
+		<< "2. Search for Change" << endl
+		<< "3. Read Technical Papers" << endl
+		<< "4. Walk" << endl
+		<< "5. Quit" << endl
+		<< "Enter number here: ";
+	cin >> selection;
+	cin.clear();
+	cin.ignore(INT_MAX, '\n');
+	nextMove choice = static_cast<nextMove>(selection);
+	switch(choice)
+	{	
+		case VIEW:
+			viewCharacter(character, hall);
+			break;
+		case SEARCH:
+			findChange(character, hall);
+			break;
+		case READ:
+			readPapers(character, hall);
+			break;
+		case WALK:
+			walk(character, hall);
+			break;
+		case EXIT:
+			cout << "You drop out of grad school. Shelby isn't THAT easy to get lost in. " << endl;
+			exitGame();
+			break;
+		default:
+			cout << "Please select a valid option. " << endl;
+			selectStrategy(character, hall);
+			break;
+	}
+}
+
+/*
+ * Displays character information on the screen as
+ * well as progress made down the hall.
+ * Parameters: Character& - attributes displayed
+ * 	Hallway - traversed vs total length
+ * Return: None
+ */
+void viewCharacter(Character& character, Hallway hall)
+{
+	cout << "Your current stats: "
+		<< "\n\tTime: " << character.time
+		<< "\n\tIntelligence: " << character.intelligence
+		<< "\n\tMoney: " << character.money 
+		<< "\n\t" << hall.traversed << "/" << hall.length
+		<< " steps down the hall." << endl;
+	press_any_key();
+	selectStrategy(character, hall);
+}
+
+/*
+ * Character will search for change losing a constant
+ * value of time and gaining a random amount of 
+ * money ($0-4).
+ * Parameters: Character& - attributes change.
+	Hallway - return to selectStrategy()
+ * Return: None
+ */
+void findChange(Character& character, Hallway hall)
+{
+	int const LOST_TIME = 2;
+	character.time -= LOST_TIME;
+	int gainedMoney = rand() % 5;
+	character.money += gainedMoney;
+	cout << "You took " << LOST_TIME << " time to find $"
+		<< gainedMoney << "." << endl;
+	press_any_key();
+	selectStrategy(character, hall);
+}
+
+/* 
+ * Character will read technical papers losing a
+ * constant amount of time and gaining a random 
+ * amount of intelligence (0-4).
+ * Parameters: Character& - attributes change
+ * 	Hallway - return to selectStrategy()
+ * Return: None
+ */
+void readPapers(Character& character, Hallway hall)
+{
+	int const LOST_TIME = 2;
+	character.time -= LOST_TIME;
+	int gainedIntel = rand() % 5;
+	character.money += gainedIntel;
+	cout << "You took " << LOST_TIME << " time to gain "
+		<< gainedIntel << " intelligence. " << endl;
+	press_any_key();
+	selectStrategy(character, hall);
+}
+
+/*
+ * Character takes one step down the hall
+ * and has a chance at a random encounter.
+ * Parameters: Character& - attributes may change.
+ * 	Hallway& - traversed during walk.
+ * Return: None
+ */
+void walk(Character& character, Hallway& hall)
+{
+	hall.traversed++;
+	int percentage = rand() % 100 + 1;
+	if(percentage > 75)
+	{
+		puzzle(character);
+	}
+	else if (percentage > 60)
+	{
+		gradePapers(character);
+	}
+	else if (percentage > 50)
+	{
+		professor(character);
+	}
+	else if (percentage > 40)
+	{
+		extension(character);
+	}
+	else if (percentage > 30)
+	{
+		getHungry(character);
+	}
+	else if (percentage > 20)
+	{
+		doResearch(character);
+	}
+	else if (percentage > 15)
+	{
+		gruntWork(character);
+	}
+	cout << "You have taken " << hall.traversed << " steps "
+		<< " out of " << hall.length << "." << endl;
+	press_any_key();
+	selectStrategy(character, hall);
+}
+
+/*
+ * Checks to see if player has won or lost
+ * based on Hallway and character attributes.
+ * Parameter: character - lose if any attribute
+ *	at or below 0.
+ *	hall - win if traversed >= length
+ * Return: true if win, else false
+ */
+bool checkStatus(Character& character, Hallway hall)
+{
+	if(hall.traversed >= hall.length)
+	{
+		return win(character);
+	}
+	else if(character.time <= 0 || character.intelligence <= 0 ||character.money <= 0)
+	{
+		lose(character);
+	}
+	else
+	{
+		return false;
+	} 
+}
+
+/*
+ * Calculates winning score and prints to screen.
+ * Parameter: character - attributes needed to 
+ *	calculate score.
+ * Return: true when successful.
+ */
+bool win(Character& character)
+{
+	int score = character.time * character.intelligence * character.money;
+	cout << "Congratulations! You made it to the end of Shelby! "
+		<< "Your score is " << score << endl;
+	return true;
+}
+
+/*
+ * Determines reason game was lost, prints
+ * to screen, and exits program.
+ * Parameters: None
+ * Return: None
+ */
+void lose(Character& character)
+{	
+	if(character.time <= 0) 
+	{ 
+		cout << "You ran out of time! Slackers get kicked out of grad school." << endl; 
+	}
+	else if (character.money <= 0)
+	{
+		cout << "You ran out of money! Go find a job! (Good luck with only a Bachelor's Degree.) " << endl;
+	}
+	else 
+	{ 
+		cout << "You ran out of intelligence! You gracefully resign to the life of a couch potato." << endl;
+	}
+	cout << "You lose!" << endl;
+	exitGame();
+}
+
+
+/*
+ * Ends game and closes program.
+ * Parameter: None
+ * Returns: None
+ */
+void exitGame()
+{
+	cout << "The game is over. " << endl;
+	exit(0);
+}
+/*
+ * Implementation of press_any_key
+ * Parameter: None
+ * Returns: None
+ */
+void press_any_key(void) 
+{
+	char ch;
+	cout << "Press any key to continue...\n\n";
+	ch = mygetch();
+	if (ch == 0 || ch == 224)
+		mygetch();
+}
+
+/*
+ * Implementation of mygetch
+ * Parameter: None
+ * Returns: None
+ */
+int mygetch (void) 
+{
+  int ch;
+  struct termios oldt, newt;
+  tcgetattr ( STDIN_FILENO, &oldt );
+  newt = oldt;
+  newt.c_lflag &= ~( ICANON | ECHO );
+  tcsetattr ( STDIN_FILENO, TCSANOW, &newt );
+  ch = getchar();
+  tcsetattr ( STDIN_FILENO, TCSANOW, &oldt );
+  return ch;
+} 
+

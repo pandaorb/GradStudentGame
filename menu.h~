@@ -1,0 +1,19 @@
+#ifndef MENU_H
+#define MENU_H
+
+#include<iostream>
+using namespace std;
+
+/*
+ * Menu will display a greeting an allow the 
+ * player to choose a course of action with 
+ * the program.
+ */
+struct Menu {
+	string greeting;
+	mainMenu selection;
+
+	Menu();
+};
+
+#endif

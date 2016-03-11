@@ -1,0 +1,70 @@
+/*
+ * Allison Macdonald
+ * amm0086
+ * amm0086-project1.cpp
+ * Written in Vim; Compiled with g++;
+ *
+ * Modified Dr. Qin's press_any_key and mygetch 
+ * methods from earlier in the year.
+ *
+ * Resolved issue with arrays in constructor by reading
+ * http://www.cplusplus.com/forum/beginner/143054/
+ * 
+ * Some questions taken from my previous TriviaNode
+ * project. (The ones provided by Dr. Qin.)
+ *
+ * Read discussion on parsing strings to ints.
+ * http://www.cplusplus.com/forum/general/13135/
+ */
+
+#include <iostream>
+#include <stdlib.h>
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <cstdlib>
+#include <climits>
+#include <fstream>
+#include "project1_functions.h"
+
+/*
+ * The main function of this program will ask for a file to read
+ * scores from and load existing scores from this file. It will 
+ * then ask for the player's name, print a greeting, and allow 
+ * the player to select an option which includes starting the game. 
+ * Once the game is complete, it will add the player's name and 
+ * score to the Scoreboard and output all scores to a file
+ * designated by the player. 
+ */
+int main()
+{
+	srand(time(0));
+	Scoreboard board;
+	char inputFile[100];
+	cout << "Which file would you like to load scores from? ";
+	cin >> inputFile;
+	cin.clear();
+	cin.ignore(INT_MAX, '\n');
+	loadScores(board, inputFile);
+
+	Menu menu;
+	Character character;
+	Hallway hall;
+	
+	string playerName = getPlayerName();
+	cout << "=================================" << endl 
+		<< "Welcome, " << playerName << endl
+		<<"=================================" << endl;
+	displayMenu(menu, board, character, hall);
+	insertScore(board, character, playerName);
+
+	char outputFile[100];
+	cout << "What file should the scores be saved to? ";
+	cin >> outputFile;	
+	cin.clear();
+	cin.ignore(INT_MAX, '\n');
+	saveScores(board, outputFile);
+	return 0;
+}
+

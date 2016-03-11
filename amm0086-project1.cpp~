@@ -1,0 +1,931 @@
+/*
+ * Allison Macdonald
+ * amm0086
+ * amm0086-project1.cpp
+ * Written in Vim; Compiled with g++;
+ *
+ * Modified Dr. Qin's press_any_key and mygetch 
+ * methods from earlier in the year.
+ *
+ * Resolved issue with arrays in constructor by reading
+ * http://www.cplusplus.com/forum/beginner/143054/
+ * 
+ * Some questions taken from my previous TriviaNode
+ * project. (The ones provided by Dr. Qin.)
+ *
+ * Read discussion on parsing strings to ints.
+ * http://www.cplusplus.com/forum/general/13135/
+ */
+
+#include <iostream>
+#include <stdlib.h>
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <cstdlib>
+#include <climits>
+#include <fstream>
+using namespace std;
+
+/* Structures */
+
+/*
+ * Score structure will hold data for each player and 
+ * that player's score. It can also point to another
+ * Score.
+ */
+struct Score {
+	string name;
+	int score;
+	Score* next;
+
+	Score();
+	Score(string nameIn, int scoreIn);
+	Score(string nameIn, int scoreIn, Score* next);
+};
+
+
+typedef Score* ScorePtr;
+typedef unsigned short u_short;
+
+/* Constructors for Score */
+Score::Score()
+{
+}
+
+Score::Score(string nameIn, int scoreIn): name(nameIn), score(scoreIn), next(NULL)
+{
+}
+
+Score::Score(string nameIn, int scoreIn, ScorePtr nextIn): name(nameIn), score(scoreIn), next(nextIn)
+{
+}
+
+/*
+ * Data structure will contain a linked list of all scores
+ * sorted from highest to lowest. It also contains the
+ * total number of scores as well as how many to report
+ * as 'High Scores'.
+ */
+struct Scoreboard {
+	u_short static const NUM_HIGH_SCORES = 5;
+	u_short numScores;
+	ScorePtr firstScore;
+
+	Scoreboard();
+	Scoreboard(u_short totalScores, ScorePtr startingScore); 
+};
+
+/* Constructors for Scoreboard */
+Scoreboard::Scoreboard() : numScores(0)
+{
+}
+
+Scoreboard::Scoreboard(u_short totalScores, ScorePtr startingScore): numScores(totalScores), firstScore(startingScore)
+{
+}
+
+/*
+ * Character structure will contain attributes for 
+ * a character which will be the main player inside
+ * of the game.
+ */
+struct Character {
+	u_short intelligence;
+	u_short time;
+	u_short money;
+
+	Character();
+	Character(u_short intIn, u_short timeIn, u_short moneyIn);
+};
+
+/* Constructors for Character */
+Character::Character()
+{
+}
+
+Character::Character(u_short intIn, u_short timeIn, u_short moneyIn): intelligence(intIn), time(timeIn), money(moneyIn)
+{
+}
+
+/* 
+ * Possible selections for main menu. Begins
+ * at one because menu begins at one.
+ */
+enum mainMenu {START = 1, DISPLAY, EXIT};
+
+/*
+ * Menu will display a greeting an allow the 
+ * player to choose a course of action with 
+ * the program.
+ */
+struct Menu {
+	string greeting;
+	mainMenu selection;
+
+	Menu();
+};
+
+/* Constructor for Menu */
+Menu::Menu(): greeting("Hello. Please enter the number for your selection: ")
+{
+} 
+
+/*
+ * Hallway represents the hall being walked along
+ * by the character. The hall has a total length
+ * and keeps track of how many steps the character
+ * has already taken.
+ */
+struct Hallway {
+	int length;
+	int traversed;
+	
+	Hallway();
+	Hallway(int lengthIn);
+};
+
+/* Constructors for Hallway */
+Hallway::Hallway()
+{
+}
+
+Hallway::Hallway(int lengthIn) : length(lengthIn)
+{
+}
+
+/*
+ * List of character attributes that can be
+ * affected by an action.
+ */
+enum attribute_t {MONEY, TIME, INTELLIGENCE};
+
+/*
+ * Allows an action to be either a penalty
+ * or reward.
+ */
+enum action_t {PENALTY, REWARD};
+
+/*
+ * Action structure is a type of action that
+ * either raises or lowers a character
+ * attribute by a certain number of points.
+ */
+struct Action {
+	action_t actionType;
+	attribute_t attributeType;
+	u_short points;
+
+	Action();
+	Action(action_t actionIn, attribute_t attributeIn, u_short pointsIn);
+};
+
+/* Constructor for Action */
+Action::Action()
+{
+}
+
+Action::Action(action_t actionIn, attribute_t attributeIn, u_short pointsIn) : actionType(actionIn), attributeType(attributeIn), points(pointsIn)
+{
+}
+
+/*
+ * Encounter handles an array of Actions that
+ * will all affect the character based on a 
+ * specified event.
+ */
+struct Encounter {
+	int static const MAX_ACT_NUM = 6;
+	Action actionArray[MAX_ACT_NUM];
+	u_short numOfActions;
+	
+	Encounter();
+	Encounter(Action actionsIn[], u_short numActionsIn);
+};
+
+/* Constructor for Encounter */
+Encounter::Encounter()
+{
+}
+
+Encounter::Encounter(Action actionsIn[], u_short numActionsIn): numOfActions(numActionsIn)
+{
+	for(int i = 0; i < numOfActions; i++)
+	{
+		actionArray[i] = actionsIn[i];
+	}
+}
+
+/* 
+ * Puzzle is a special type of encounter in which
+ * results are determined by player input.
+ */
+struct Puzzle {
+	int static const MAX_ACT_NUM = 6;
+	string question;
+	string key;
+	Action actionArray[MAX_ACT_NUM];
+	u_short numOfActions;
+	
+	Puzzle();
+	Puzzle(string questionIn, string keyIn, Action actionArrayIn[], u_short numOfActionsIn);
+};
+
+/* Constructors for Puzzle */
+Puzzle::Puzzle()
+{
+}
+
+Puzzle::Puzzle(string questionIn, string keyIn, Action actionArrayIn[], u_short numOfActionsIn) : question(questionIn), key(keyIn), numOfActions(numOfActionsIn) 
+{
+	for(int i = 0; i < numOfActions; i++)
+	{
+		actionArray[i] = actionArrayIn[i];
+	}
+}
+
+/* Prototypes */
+string getPlayerName(void);
+void displayMenu(Menu&, Scoreboard, Character&, Hallway&);
+void startGame(Character&, Hallway&);
+void generateAttributes(Character&);
+void selectStrategy(Character&, Hallway&);
+void viewCharacter(Character&, Hallway);
+void findChange(Character&, Hallway);
+void readPapers(Character&, Hallway);
+void walk(Character&, Hallway&);
+void puzzle(Character&);
+int createPuzzles(Puzzle puzzleArray[], int puzzleArraySize);
+void gradePapers(Character&);
+void professor(Character&);
+void extension(Character&);
+void getHungry(Character&);
+void doResearch(Character&);
+void gruntWork(Character&);
+void encounterResults(Character&, Encounter);
+bool checkStatus(Character&, Hallway);
+bool win(Character&);
+void lose(Character&);
+int loadScores(Scoreboard& board, char fileName[]);
+void viewScores(Menu&, Scoreboard, Character&, Hallway&);
+int saveScores(Scoreboard board, char fileName[]);
+void insertScore(Scoreboard&, Character, string);
+void exitGame(void);
+void press_any_key(void);
+int mygetch(void);
+
+
+/*
+ * WHAT DOES THIS DO???
+ */
+int main()
+{
+	Scoreboard board;
+	char inputFile[100];
+	cout << "Which file would you like to load scores from? ";
+	cin >> inputFile;
+	cin.clear();
+	cin.ignore(INT_MAX, '\n');
+	loadScores(board, inputFile);
+
+	Menu menu;
+	Character character;
+	Hallway hall;
+	
+	string playerName = getPlayerName();
+	displayMenu(menu, board, character, hall);
+	cout << "main: " << character.time << character.intelligence << character.money;
+	insertScore(board, character, playerName);
+
+	char outputFile[100];
+	cout << "What file should the scores be saved to? ";
+	cin >> outputFile;	
+	cin.clear();
+	cin.ignore(INT_MAX, '\n');
+	saveScores(board, outputFile);
+	return 0;
+}
+
+string getPlayerName()
+{
+	string playerName = "";
+	cout << "Please enter your name: ";
+	getline(cin, playerName);
+	cout << endl;
+	return playerName;
+}
+
+
+void displayMenu(Menu& menu, Scoreboard board, Character& character, Hallway& hall)
+{
+	int selection;
+	cout << menu.greeting << endl
+		<< "1. Start Game " << endl
+		<< "2. View High Scores " << endl
+		<< "3. Exit " << endl
+		<< "Enter number here: ";
+	cin >> selection;
+	cin.clear();
+	cin.ignore(INT_MAX, '\n');
+	cout << endl;
+
+	menu.selection = static_cast<mainMenu>(selection);
+
+	switch(menu.selection)
+	{
+		case START:
+			startGame(character, hall);
+			break;
+		case DISPLAY:
+			viewScores(menu, board, character, hall);
+			break;
+		case EXIT: 
+			exitGame();
+			break;
+		default:
+			cout << "Please select a valid option. " << endl;
+			displayMenu(menu, board, character, hall);
+			break;
+	}
+}
+
+void startGame(Character& character, Hallway& hall)
+{
+	generateAttributes(character);
+	hall.length = 20;
+	hall.traversed = 0;
+	selectStrategy(character, hall);
+	
+}
+
+void generateAttributes(Character& character)
+{	
+	character.time = 6 + rand() % 5;
+	character.intelligence = 6  + rand() % 5;
+	character.money = 6 + rand() % 5; 
+}
+
+void selectStrategy(Character& character, Hallway& hall)
+{
+	enum nextMove {VIEW = 1, SEARCH, READ, WALK, EXIT};
+	int selection;
+	cout << "Please choose your next action. " << endl
+		<< "1. View Character" << endl
+		<< "2. Search for Change" << endl
+		<< "3. Read Technical Papers" << endl
+		<< "4. Walk" << endl
+		<< "5. Quit" << endl
+		<< "Enter number here: ";
+	cin >> selection;
+	cin.clear();
+	cin.ignore(INT_MAX, '\n');
+	nextMove choice = static_cast<nextMove>(selection);
+	switch(choice)
+	{	
+		case VIEW:
+			viewCharacter(character, hall);
+			break;
+		case SEARCH:
+			findChange(character, hall);
+			break;
+		case READ:
+			readPapers(character, hall);
+			break;
+		case WALK:
+			walk(character, hall);
+			break;
+		case EXIT:
+			cout << "You drop out of grad school. Shelby isn't THAT easy to get lost in. " << endl;
+			exitGame();
+			break;
+		default:
+			cout << "Please select a valid option. " << endl;
+			selectStrategy(character, hall);
+			break;
+	}
+}
+
+void viewCharacter(Character& character, Hallway hall)
+{
+	cout << "Your current stats: "
+		<< "\n\tTime: " << character.time
+		<< "\n\tIntelligence: " << character.intelligence
+		<< "\n\tMoney: " << character.money 
+		<< "\n\t" << hall.traversed << "/" << hall.length
+		<< " steps down the hall." << endl;
+	press_any_key();
+	selectStrategy(character, hall);
+}
+
+void findChange(Character& character, Hallway hall)
+{
+	int const LOST_TIME = 2;
+	character.time -= LOST_TIME;
+	int gainedMoney = rand() % 5;
+	character.money += gainedMoney;
+	cout << "You took " << LOST_TIME << " time to find $"
+		<< gainedMoney << "." << endl;
+	press_any_key();
+	selectStrategy(character, hall);
+}
+
+void readPapers(Character& character, Hallway hall)
+{
+	int const LOST_TIME = 2;
+	character.time -= LOST_TIME;
+	int gainedIntel = rand() % 5;
+	character.money += gainedIntel;
+	cout << "You took " << LOST_TIME << " time to gain "
+		<< gainedIntel << " intelligence. " << endl;
+	press_any_key();
+	selectStrategy(character, hall);
+}
+
+void walk(Character& character, Hallway& hall)
+{
+	hall.traversed++;
+	int percentage = rand() % 100 + 1;
+	if(percentage > 75)
+	{
+		puzzle(character);
+	}
+	else if (percentage > 60)
+	{
+		gradePapers(character);
+	}
+	else if (percentage > 50)
+	{
+		professor(character);
+	}
+	else if (percentage > 40)
+	{
+		extension(character);
+	}
+	else if (percentage > 30)
+	{
+		getHungry(character);
+	}
+	else if (percentage > 20)
+	{
+		doResearch(character);
+	}
+	else if (percentage > 15)
+	{
+		gruntWork(character);
+	}
+	if(checkStatus(character, hall))
+	{
+		return;
+	}
+	cout << "You have taken " << hall.traversed << " steps "
+		<< " out of " << hall.length << "." << endl;
+	press_any_key();
+	selectStrategy(character, hall);
+}
+
+void puzzle(Character& character)
+{
+	int const MAX_PUZZLES = 10;
+	Puzzle allPuzzles[MAX_PUZZLES];
+	int numPuzzles = createPuzzles(allPuzzles, 0);
+	int randIndex = rand() % numPuzzles;
+	Puzzle currentPuzzle = allPuzzles[randIndex];
+
+	string answer;
+	cout << currentPuzzle.question << endl;
+	getline(cin, answer);
+	
+	for(int i = 0; i < currentPuzzle.numOfActions; i++)
+	{			
+		int changedAttribute = currentPuzzle.actionArray[i].attributeType;
+		int changeAmt = currentPuzzle.actionArray[i].points;
+		action_t result = REWARD;
+		string messageStart = "You gained ";
+		string messageEnd;
+		if (answer != currentPuzzle.key) 
+		{
+			result = PENALTY;
+			changeAmt *= -1;
+			messageStart = "You lost ";
+		}
+		if(currentPuzzle.actionArray[i].actionType == result)
+		{
+			 switch(changedAttribute)
+               		 {
+                        	case TIME:
+                               		character.time += changeAmt;
+					messageEnd = " time.";
+                                	break;
+                        	case MONEY:
+                                	character.money += changeAmt;
+					messageEnd = " money.";
+                                	break;
+                        	case INTELLIGENCE:
+                                	character.intelligence += changeAmt;
+					messageEnd = " intelligence.";
+                                	break;
+                        	default:
+                                	break;
+                	}
+			if(changeAmt < 0) { changeAmt *= -1; }
+			cout << messageStart << changeAmt << messageEnd << endl;
+		}
+	}
+
+}
+
+int createPuzzles(Puzzle puzzleArray[], int puzzleArraySize)
+{
+	int numResults = 2;
+	int randReward = rand() % 5 + 1;
+	int randPenalty = rand() % 5 + 1;
+	Action timeCorrect(REWARD, TIME, randReward);
+	Action timeIncorrect(PENALTY, TIME, randPenalty);
+	Action moneyCorrect(REWARD, MONEY, randReward);
+	Action moneyIncorrect(PENALTY, MONEY, randPenalty);
+	Action intelCorrect(REWARD, INTELLIGENCE, randReward);
+	Action intelIncorrect(PENALTY, INTELLIGENCE, randPenalty);
+
+	Action timeResults[numResults];
+	timeResults[0] = timeCorrect;
+	timeResults[1] = timeIncorrect;
+	Action moneyResults[numResults];
+	moneyResults[0] = moneyCorrect;
+	moneyResults[1] = moneyIncorrect;
+	Action intelResults[numResults];
+	intelResults[0] = intelCorrect;
+	intelResults[1] = intelIncorrect;
+
+	int index = 0;
+
+	Puzzle puzzle1("How long was the shortest war on record? (Hint: how many minutes?)", "38", timeResults, numResults);
+	puzzleArray[index] = puzzle1;
+	index++;
+	
+	Puzzle puzzle2("What was Bank of America's original name? (Hint: Bank of Italy or Bank of Germany?)", "Bank of Italy", moneyResults, numResults);	
+	puzzleArray[index] = puzzle2;
+	index++;
+
+	Puzzle puzzle3("What is the best-selling video game of all time? (Hint: Call of Duty or Wii Sports?)", "Wii Sports", intelResults, numResults);
+	puzzleArray[index] = puzzle3;
+	index++;
+
+	Puzzle puzzle4("What is 2 + 2? ", "4", intelResults, numResults);
+	puzzleArray[index] = puzzle4;
+	index++;
+
+	Puzzle puzzle5("In the Disney movie, Big Hero 6, Hiro tells Baymax he is allergic to what?", "Bacitracin", moneyResults, numResults);
+	puzzleArray[index] = puzzle5;
+	index++;
+
+	Puzzle puzzle6("What is the name of the enemy dragon in Elder Scrolls IV: Skyrim? ", "Alduin", timeResults, numResults);
+	puzzleArray[index] = puzzle6;
+	index++;
+	
+	Puzzle puzzle7("Where is Frozone's super-suit?", "Why do you need to know?", moneyResults, numResults);
+	puzzleArray[index] = puzzle7;
+	index++;
+
+	puzzleArraySize = index;
+
+	return puzzleArraySize;
+}
+
+void gradePapers(Character& character)
+{
+	
+	cout << "You must stop and grade papers!" << endl;
+	int timeLost = 1;
+	Action timeDown(PENALTY, TIME, timeLost);
+	int moneyGained = rand() % 6;
+	Action moneyUp(REWARD, MONEY, moneyGained);
+	int numActions = 2;
+	Action actionArray[numActions];
+	actionArray[0] = timeDown;
+	actionArray[1] = moneyUp;
+	Encounter gradePapers(actionArray, numActions);
+	
+	encounterResults(character, gradePapers);
+	cout << "You lost " << timeLost << " time and gained $" 
+		<< moneyGained << "." << endl;
+}
+
+void professor(Character& character)
+{
+	cout << "Dr. Qin wants to tell you how great the music recital was!" << endl;
+	int timeLost = 1;
+	Action timeDown(PENALTY, TIME, timeLost);
+	int intelGained = rand() % 6;
+	Action intelUp(REWARD, INTELLIGENCE, intelGained);
+	int numActions = 2;
+	Action actionArray[numActions];
+	actionArray[0] = timeDown;
+	actionArray[1] = intelUp;
+	Encounter professor(actionArray, numActions);
+
+	encounterResults(character, professor);
+	cout << "You lost " << timeLost << " time and gained "
+		<< intelGained << " intelligence. " << endl;
+}
+
+void extension(Character& character)
+{
+	cout << "Your professor gives you an assignment extension! "
+		<< "You buy a gift to say thank you." << endl;
+	int timeGained = rand() % 10 + 1;
+	Action timeUp(REWARD, TIME, timeGained);
+	int moneyLost = rand() % 5;
+	Action moneyDown(PENALTY, MONEY, moneyLost);
+	int numActions = 2;
+	Action actionArray[numActions];
+	actionArray[0] = timeUp;
+	actionArray[1] = moneyDown;
+	Encounter extension(actionArray, numActions);
+
+	encounterResults(character, extension);
+	cout << "You gained " << timeGained << "time and lost $" 
+		<< moneyLost << endl;
+}
+
+void getHungry(Character& character)
+{
+	cout << "You get hungry and buy food across the street. " << endl;
+	int timeLost = rand() % 2;
+	Action timeDown(PENALTY, TIME, timeLost);
+	int moneyLost = 4 + rand() % 3;
+	Action moneyDown(PENALTY, MONEY, moneyLost);
+	int numActions = 2;
+	Action actionArray[numActions];
+	actionArray[0] = timeDown;
+	actionArray[1] = moneyDown;
+	Encounter buyFood(actionArray, numActions);
+
+	encounterResults(character, buyFood);
+	cout << "You lost " << timeLost << " time and $" << moneyLost << endl;
+}
+
+void doResearch(Character& character)
+{
+	cout << "You sit down to do some research. " << endl;
+	int moneyGained = rand() % 6;
+	Action moneyUp(REWARD, MONEY, moneyGained);
+	int intelGained = rand() % 6;
+	Action intelUp(REWARD, INTELLIGENCE, intelGained);
+	int numActions = 2;
+	Action actionArray[numActions];
+	actionArray[0] = moneyUp;
+	actionArray[1] = intelUp;
+	Encounter research(actionArray, numActions);
+	
+	encounterResults(character, research);
+	cout << "You gained $" << moneyGained << " and " << intelGained
+		<< " intelligence. " << endl;
+}
+
+void gruntWork(Character& character)
+{
+	cout << "You got stuck with grunt work!" << endl;
+	int moneyGain = 1;
+	Action moneyUp(REWARD, MONEY, moneyGain);
+	int intelLost = rand() % 5 + 1;
+	Action intelDown(PENALTY, INTELLIGENCE, intelLost);
+	int numActions = 2;
+	Action actionArray[numActions];
+	actionArray[0] = moneyUp;
+	actionArray[1] = intelDown;
+	Encounter gruntWork(actionArray, numActions);
+
+	encounterResults(character, gruntWork);
+	cout << "You made $" << moneyGain << " and lost " << intelLost
+		<< " intelligence. " << endl;
+}
+
+void encounterResults(Character& character, Encounter encounter)
+{	
+	for(int i = 0; i < encounter.numOfActions; i++)
+	{
+		action_t result = encounter.actionArray[i].actionType;
+		int changeAmt = encounter.actionArray[i].points;
+		if(result == PENALTY)
+		{
+			changeAmt *= -1;
+		}
+	
+			
+		attribute_t changedAttribute = encounter.actionArray[i].attributeType;
+		switch(changedAttribute)
+		{
+			case TIME:
+				character.time += changeAmt;
+				break;
+			case MONEY:
+				character.money += changeAmt;
+				break;
+			case INTELLIGENCE:
+				character.intelligence += changeAmt;
+				break; 
+			default:
+				break;
+		}
+	}
+}
+
+bool checkStatus(Character& character, Hallway hall)
+{
+	if(hall.traversed >= hall.length)
+	{
+		return win(character);
+	}
+	else if(character.time <= 0 || character.intelligence <= 0 ||character.money <= 0)
+	{
+		lose(character);
+	}
+	return false; 
+}
+
+bool win(Character& character)
+{
+	cout << "Win: " << character.time << character.intelligence << character.money;
+	int score = character.time * character.intelligence * character.money;
+	cout << "Congratulations! You made it to the end of Shelby! "
+		<< "Your score is " << score << endl;
+	return true;
+}
+
+void lose(Character& character)
+{	
+	if(character.time <= 0) 
+	{ 
+		cout << "You ran out of time! Slackers get kicked out of grad school." << endl; 
+	}
+	else if (character.money <= 0)
+	{
+		cout << "You ran out of money! Go find a job! (Good luck with only a Bachelor's Degree.) " << endl;
+	}
+	else 
+	{ 
+		cout << "You ran out of intelligence! You gracefully resign to the life of a couch potato." << endl;
+	}
+	cout << "You lose!" << endl;
+	exitGame();
+}
+
+void viewScores(Menu& menu, Scoreboard board, Character& character, Hallway& hall)
+{
+	ScorePtr current = board.firstScore;
+	cout << "Name \t\t Score" << endl;
+	for(int i = 1; i <= board.NUM_HIGH_SCORES; i++)
+	{
+		cout << i << "." << current->name << "\t" << current->score << endl;
+		current = current->next;
+	}
+	delete current;
+	current = NULL;
+	press_any_key();
+	displayMenu(menu, board, character, hall);
+}
+
+int loadScores(Scoreboard& board, char fileName[])
+{
+	string data;
+	ifstream inStream;
+	inStream.open(fileName);
+	if(inStream.fail())
+	{
+		cout << "Input file opening failed. " << endl;
+		exit(1);
+	}
+	inStream >> data;
+	ScorePtr root = NULL;
+	ScorePtr current = NULL;
+	while(!inStream.eof())
+	{
+		try
+		{
+			ScorePtr newScore = new Score();
+			newScore->name = data;
+			inStream >> data;
+			newScore->score = atoi(data.c_str());
+			if(root == NULL)
+			{
+				current = newScore;
+				root = newScore;
+			}
+			else
+			{
+				current->next = newScore;
+				current = newScore;
+			}
+			board.numScores++;
+			inStream >> data;
+			newScore = newScore->next;
+			delete newScore;
+		}
+		catch (exception e)
+		{
+			cout << "An exception occured." << endl;
+		}
+	}
+	inStream.close();
+	board.firstScore = root;
+	current = current->next;
+	delete current;
+	root = NULL;
+	delete root;
+	return 0;
+}
+
+int saveScores(Scoreboard board, char fileName[])
+{
+	ofstream outStream;
+	outStream.open(fileName);
+	ScorePtr current = board.firstScore;
+	for(int i = 0; i < board.numScores; i++)
+	{
+		outStream << current->name << endl;
+		outStream << current->score << endl;
+		
+		if(current->next != NULL)
+		{
+			current = current->next;
+		}
+	}
+	current = NULL;
+	delete current;
+	outStream.close();
+	cout << "Please check the new file - " << fileName << endl;
+}
+
+void insertScore(Scoreboard& board, Character character, string playerName)
+{
+	cout << "Insert: " << character.time << character.intelligence << character.money;
+	ScorePtr newScore = new Score();
+	newScore->score = character.time * character.intelligence * character.money;
+	newScore->name = playerName;
+	ScorePtr previous = NULL;
+	ScorePtr current = board.firstScore;
+	for(int i = 0; i < board.numScores; i++)
+	{
+		//insert first
+		if (current->score < newScore->score && previous == NULL) 
+		{
+			newScore->next = current;
+			board.firstScore = newScore;
+			break;
+		}
+		else if (current->score < newScore->score)
+		{
+			newScore->next = current;
+			previous->next = newScore;
+			break;
+		}
+		//insert last
+		else if(current->next == NULL)
+		{
+			current->next = newScore;
+			break;
+		}
+		previous = current;
+		current = current->next;
+	}
+	current = NULL;
+	delete current;
+	previous = NULL;
+	delete previous;
+	board.numScores++;
+}
+
+void exitGame()
+{
+	cout << "The game is over. " << endl;
+	exit(0);
+}
+/*
+ * Implementation of press_any_key
+ */
+void press_any_key(void) 
+{
+	char ch;
+	cout << "Press any key to continue...\n\n";
+	ch = mygetch();
+	if (ch == 0 || ch == 224)
+		mygetch();
+}
+
+/*
+ * Implementation of mygetch
+ */
+int mygetch (void) 
+{
+  int ch;
+  struct termios oldt, newt;
+  tcgetattr ( STDIN_FILENO, &oldt );
+  newt = oldt;
+  newt.c_lflag &= ~( ICANON | ECHO );
+  tcsetattr ( STDIN_FILENO, TCSANOW, &newt );
+  ch = getchar();
+  tcsetattr ( STDIN_FILENO, TCSANOW, &oldt );
+  return ch;
+} 
+
